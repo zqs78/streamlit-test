@@ -20,10 +20,10 @@ const { WebSocket, createWebSocketStream } = require('ws');
 const UUID = process.env.UUID || '4fc8b8ed-1e1b-4e0a-bc1c-e9f3ff5a84e2';
 const NEZHA_SERVER = process.env.NEZHA_SERVER || '';
 const NEZHA_KEY = process.env.NEZHA_KEY || '';             
-const DOMAIN = process.env.DOMAIN || 'your-domain.com';    
+const DOMAIN = process.env.DOMAIN || 'owna71t5hzyvjy8d7j89vej2.vexlo.cloud';    
 const AUTO_ACCESS = process.env.AUTO_ACCESS || false;      
 const SUB_PATH = process.env.SUB_PATH || 'cat';           
-const NAME = process.env.NAME || 'streamlit';                       
+const NAME = process.env.NAME || 'vexlo';                       
 const PORT = process.env.PORT || 3000;                    
 
 // NZ-Agent
