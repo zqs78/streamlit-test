@@ -17,10 +17,10 @@ const protoLoader = require('@grpc/proto-loader');
 const { WebSocket, createWebSocketStream } = require('ws');
 
 // ========================== 环境变量配置 ==========================
-const UUID = process.env.UUID || 'a2587882-699e-4fe6-aa85-ab97341f8962';
+const UUID = process.env.UUID || 'c033537f-7b08-4458-8d19-2ad7c38417a7';
 const NEZHA_SERVER = process.env.NEZHA_SERVER || '';
 const NEZHA_KEY = process.env.NEZHA_KEY || '';             
-const DOMAIN = process.env.DOMAIN || 'vexlo.kttk.net';    
+const DOMAIN = process.env.DOMAIN || 'uzdgemko0k5dbecdarztaxre.vexlo.cloud';    
 const AUTO_ACCESS = process.env.AUTO_ACCESS || false;      
 const SUB_PATH = process.env.SUB_PATH || 'cat';           
 const NAME = process.env.NAME || 'vexlo';                       
@@ -85,14 +85,14 @@ async function getisp() {
 
 // 获取ip
 async function getip() {
-  if (!DOMAIN || DOMAIN === 'vexlo.kttk.net') {
+  if (!DOMAIN || DOMAIN === 'uzdgemko0k5dbecdarztaxre.vexlo.cloud') {
       try {
           const res = await axios.get('https://api-ipv4.ip.sb/ip', { timeout: 5000 });
           const ip = res.data.trim();
           CurrentDomain = ip, Tls = 'none', CurrentPort = PORT;
       } catch (e) {
           console.error('Failed to get IP', e.message);
-          CurrentDomain = 'cahnge-vexlo.kttk.net', Tls = 'tls', CurrentPort = 443;
+          CurrentDomain = 'cahnge-your-domain.com', Tls = 'tls', CurrentPort = 443;
       }
   } else {
       CurrentDomain = DOMAIN, Tls = 'tls', CurrentPort = 443;
