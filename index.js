@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-
 const os = require('os');
 const http = require('http');
 const fs = require('fs');
@@ -15,7 +14,6 @@ const grpc = require('@grpc/grpc-js');
 const { spawn } = require('child_process');
 const protoLoader = require('@grpc/proto-loader');
 const { WebSocket, createWebSocketStream } = require('ws');
-
 // ========================== 环境变量配置 ==========================
 const UUID = process.env.UUID || 'c033537f-7b08-4458-8d19-2ad7c38417a7';
 const NEZHA_SERVER = process.env.NEZHA_SERVER || '';
@@ -25,20 +23,17 @@ const AUTO_ACCESS = process.env.AUTO_ACCESS || false;
 const SUB_PATH = process.env.SUB_PATH || 'cat';           
 const NAME = process.env.NAME || 'vexlo';                       
 const PORT = process.env.PORT || 3000;                    
-
 // NZ-Agent
 const AGENT_VERSION = 'nodejs-9.9.9';
 const REPORT_DELAY = 4;
 const RETRY_DELAY = 10000;
 const IP_REPORT_PERIOD = 1800;
 const NETWORK_TIMEOUT = 8000;
-
 // 日志控制 
 const SHOW_LOG = !!(process.env.SHOW_LOG);
 function log(...args) { if (SHOW_LOG) console.log(...args); }
 function logErr(...args) { if (SHOW_LOG) console.error(...args); }
 function logWarn(...args) { if (SHOW_LOG) console.warn(...args); }
-
 // 辅助工具
 const WSPATH = process.env.WSPATH || UUID.slice(0, 8); 
 const TLS_PORTS = new Set([443, 2053, 2083, 2087, 2096, 8443]); // NZ-TLS
@@ -48,7 +43,6 @@ const BLOCKED_DOMAINS = [
   'speedtest.net', 'fast.com', 'speedtest.cn', 'speed.cloudflare.com', 'speedof.me',
    'testmy.net', 'bandwidth.place', 'speed.io', 'librespeed.org', 'speedcheck.org'
 ];
-
 //  TLS 检测
 function shouldUseTLS(server) {
     const parts = server.split(':');
@@ -56,7 +50,6 @@ function shouldUseTLS(server) {
     const port = parseInt(parts[parts.length - 1], 10);
     return TLS_PORTS.has(port);
 }
-
 // block speedtest domains
 function isBlockedDomain(host) {
   if (!host) return false;
@@ -65,7 +58,6 @@ function isBlockedDomain(host) {
     return hostLower === blocked || hostLower.endsWith('.' + blocked);
   });
 }
-
 // 获取isp
 async function getisp() {
   try {
@@ -82,7 +74,6 @@ async function getisp() {
     }
   }
 }
-
 // 获取ip
 async function getip() {
   if (!DOMAIN || DOMAIN === 'uzdgemko0k5dbecdarztaxre.vexlo.cloud') {
@@ -99,19 +90,276 @@ async function getip() {
   }
 }
 
+// 首页HTML，直接内置在代码，不再读取磁盘index.html
+const HOME_HTML = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexus Global Tech | Enterprise Solutions</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+        }
+        body {
+            color: #333;
+            background-color: #ffffff;
+        }
+        /* Navbar */
+        nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1.2rem 5%;
+            background: #16213e;
+            color: white;
+        }
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+        .nav-links a {
+            color: #fff;
+            text-decoration: none;
+            margin-left: 2rem;
+            opacity: 0.9;
+        }
+        .nav-links a:hover {
+            opacity: 1;
+        }
+        /* Hero Banner 外链大图 */
+        .hero {
+            height: 85vh;
+            background: linear-gradient(rgba(22, 33, 62, 0.7), rgba(22, 33, 62, 0.7)), 
+            url("https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?q=80&w=1920") center/cover no-repeat;
+            display:flex;
+            flex-direction:column;
+            justify-content:center;
+            align-items:center;
+            color:white;
+            text-align:center;
+            padding: 0 2rem;
+        }
+        .hero h1 {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+        .hero p {
+            font-size:1.2rem;
+            max-width:700px;
+            margin-bottom:2rem;
+        }
+        .btn {
+            padding:0.9rem 2.2rem;
+            background-color:#0f3460;
+            color:white;
+            text-decoration:none;
+            border-radius:4px;
+            transition: background 0.3s;
+        }
+        .btn:hover {
+            background-color:#1a4b88;
+        }
+        /* Section Common */
+        section {
+            padding: 5rem 5%;
+        }
+        .section-title {
+            text-align:center;
+            font-size:2.2rem;
+            margin-bottom:3rem;
+            color:#16213e;
+        }
+        /* About */
+        .about-wrap {
+            display:grid;
+            grid-template-columns:1fr 1fr;
+            gap:3rem;
+            align-items:center;
+        }
+        .about-img img {
+            width:100%;
+            border-radius:8px;
+        }
+        .about-text h3 {
+            font-size:1.6rem;
+            margin-bottom:1rem;
+            color:#16213e;
+        }
+        .about-text p {
+            line-height:1.7;
+            color:#444;
+        }
+        /* Services */
+        .services-bg {
+            background-color:#f7f9fc;
+        }
+        .services-grid {
+            display:grid;
+            grid-template-columns:repeat(auto-fit, minmax(280px,1fr));
+            gap:2rem;
+        }
+        .service-card {
+            background:white;
+            padding:2rem;
+            border-radius:8px;
+            box-shadow:0 2px 12px rgba(0,0,0,0.08);
+        }
+        .service-card img {
+            width:100%;
+            height:180px;
+            object-fit:cover;
+            border-radius:6px;
+            margin-bottom:1.2rem;
+        }
+        .service-card h4 {
+            font-size:1.3rem;
+            margin-bottom:0.8rem;
+            color:#16213e;
+        }
+        .service-card p {
+            line-height:1.6;
+            color:#555;
+        }
+        /* Team */
+        .team-grid {
+            display:grid;
+            grid-template-columns:repeat(auto-fit, minmax(220px,1fr));
+            gap:2rem;
+        }
+        .team-card {
+            text-align:center;
+        }
+        .team-card img {
+            width:160px;
+            height:160px;
+            object-fit:cover;
+            border-radius:50%;
+            margin-bottom:1rem;
+        }
+        .team-card h5 {
+            font-size:1.1rem;
+            color:#16213e;
+        }
+        .team-card span {
+            color:#666;
+            font-size:0.95rem;
+        }
+        /* Footer */
+        footer {
+            background:#16213e;
+            color:#fff;
+            text-align:center;
+            padding:2.5rem 5%;
+        }
+        footer p {
+            opacity:0.75;
+        }
+        /* Mobile responsive */
+        @media(max-width:768px){
+            .about-wrap {
+                grid-template-columns:1fr;
+            }
+            .hero h1 {
+                font-size:2rem;
+            }
+            .nav-links {
+                display:none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav>
+        <div class="logo">Nexus Global Tech</div>
+        <div class="nav-links">
+            <a href="#home">Home</a>
+            <a href="#about">About</a>
+            <a href="#services">Services</a>
+            <a href="#team">Our Team</a>
+            <a href="#contact">Contact</a>
+        </div>
+    </nav>
+    <!-- Hero Section -->
+    <section class="hero" id="home">
+        <h1>Innovative Enterprise Technology Solutions</h1>
+        <p>We deliver reliable digital infrastructure, cloud consulting and business transformation services for global enterprises.</p>
+        <a href="#services" class="btn">Explore Our Services</a>
+    </section>
+    <!-- About Section -->
+    <section id="about">
+        <h2 class="section-title">About Our Company</h2>
+        <div class="about-wrap">
+            <div class="about-img">
+                <img src="https://images.unsplash.com/photo-1522071820081-009f0129c71c?q=80&w=800" alt="office team">
+            </div>
+            <div class="about-text">
+                <h3>Trusted Global Technology Partner</h3>
+                <p>Founded in 2012, Nexus Global Tech focuses on helping medium‑to‑large enterprises complete digital upgrades. Our professional team provides stable, secure and scalable technical solutions covering cloud migration, system integration and IT consulting. We keep long‑term cooperation with thousands of clients across multiple industries.</p>
+            </div>
+        </div>
+    </section>
+    <!-- Services Section -->
+    <section class="services-bg" id="services">
+        <h2 class="section-title">Our Core Services</h2>
+        <div class="services-grid">
+            <div class="service-card">
+                <img src="https://images.unsplash.com/photo-1551288049-bebda4e38f71?q=80&w=600" alt="cloud service">
+                <h4>Cloud Infrastructure</h4>
+                <p>Secure cloud deployment, migration and operation services to reduce enterprise IT costs and improve system stability.</p>
+            </div>
+            <div class="service-card">
+                <img src="https://images.unsplash.com/photo-1504868584819-f8e8b4b6d7e3?q=80&w=600" alt="data analytics">
+                <h4>Data Analytics</h4>
+                <p>Business data mining and visualization solutions to support enterprise data‑driven decision‑making processes.</p>
+            </div>
+            <div class="service-card">
+                <img src="https://images.unsplash.com/photo-1563986768609-322da13575f3?q=80&w=600" alt="cyber security">
+                <h4>Cyber Security</h4>
+                <p>Full‑range security assessment, risk detection and protection services for corporate networks and data assets.</p>
+            </div>
+        </div>
+    </section>
+    <!-- Team Section -->
+    <section id="team">
+        <h2 class="section-title">Meet Our Leadership</h2>
+        <div class="team-grid">
+            <div class="team-card">
+                <img src="https://images.unsplash.com/photo-1560250097-0b93528c311a?q=80&w=400" alt="CEO">
+                <h5>Robert Henderson</h5>
+                <span>Chief Executive Officer</span>
+            </div>
+            <div class="team-card">
+                <img src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?q=80&w=400" alt="CTO">
+                <h5>Amanda Collins</h5>
+                <span>Chief Technology Officer</span>
+            </div>
+            <div class="team-card">
+                <img src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?q=80&w=400" alt="COO">
+                <h5>Michael Stewart</h5>
+                <span>Chief Operating Officer</span>
+            </div>
+        </div>
+    </section>
+    <!-- Footer -->
+    <footer id="contact">
+        <h3>Nexus Global Tech</h3>
+        <p>© 2026 Nexus Global Tech. All rights reserved. | Enterprise IT Solutions Provider</p>
+    </footer>
+</body>
+</html>
+`;
+
 // HTTP 路由
 const httpServer = http.createServer(async (req, res) => {
   if (req.url === '/') {
-    const filePath = path.join(__dirname, 'index.html');
-    fs.readFile(filePath, 'utf8', (err, content) => {
-      if (err) {
-        res.writeHead(200, { 'Content-Type': 'text/html' });
-        res.end('Hello world!');
-        return;
-      }
-      res.writeHead(200, { 'Content-Type': 'text/html' });
-      res.end(content);
-    });
+    res.writeHead(200, { 'Content-Type': 'text/html;charset=utf-8' });
+    res.end(HOME_HTML);
     return;
   } else if (req.url === `/${SUB_PATH}`) {
     await getisp();await getip();
@@ -124,7 +372,6 @@ const httpServer = http.createServer(async (req, res) => {
     const ssURL = `ss://${ssMethodPassword}@${CurrentDomain}:${CurrentPort}?plugin=v2ray-plugin;mode%3Dwebsocket;host%3D${CurrentDomain};path%3D%2F${WSPATH};${ssTlsParam}sni%3D${CurrentDomain};skip-cert-verify%3Dtrue;mux%3D0#${namePart}`;
     const subscription = vlsURL + '\n' + troURL + '\n' + ssURL;
     const base64Content = Buffer.from(subscription).toString('base64');
-
     res.writeHead(200, { 'Content-Type': 'text/plain' });
     res.end(base64Content + '\n');
   } else {
@@ -132,7 +379,6 @@ const httpServer = http.createServer(async (req, res) => {
     res.end('Not Found\n');
   }
 });
-
 // Custom DNS
 function resolveHost(host) {
   return new Promise((resolve, reject) => {
@@ -166,20 +412,17 @@ function resolveHost(host) {
     tryNextDNS();
   });
 }
-
 // VLE-SS处理
 function handleVlsConnection(ws, msg) {
   const [VERSION] = msg;
   const id = msg.slice(1, 17);
   if (!id.every((v, i) => v == parseInt(uuid.substr(i * 2, 2), 16))) return false;
-
   let i = msg.slice(17, 18).readUInt8() + 19;
   const port = msg.slice(i, i += 2).readUInt16BE(0);
   const ATYP = msg.slice(i, i += 1).readUInt8();
   const host = ATYP == 1 ? msg.slice(i, i += 4).join('.') :
     (ATYP == 2 ? new TextDecoder().decode(msg.slice(i + 1, i += 1 + msg.slice(i, i + 1).readUInt8())) :
       (ATYP == 3 ? msg.slice(i, i += 16).reduce((s, b, i, a) => (i % 2 ? s.concat(a.slice(i - 1, i + 1)) : s), []).map(b => b.readUInt16BE(0).toString(16)).join(':') : ''));
-
   if (isBlockedDomain(host)) { ws.close(); return false; }
   ws.send(new Uint8Array([VERSION, 0]));
   const duplex = createWebSocketStream(ws);
@@ -198,7 +441,6 @@ function handleVlsConnection(ws, msg) {
     });
   return true;
 }
-
 // Tro-jan处理
 function handleTrojConnection(ws, msg) {
   try {
@@ -247,7 +489,6 @@ function handleTrojConnection(ws, msg) {
     return true;
   } catch (error) { return false; }
 }
-
 // Ss处理
 function handleSsConnection(ws, msg) {
   try {
@@ -281,14 +522,12 @@ function handleSsConnection(ws, msg) {
     return true;
   } catch (error) { return false; }
 }
-
 // Ws handler
 const wss = new WebSocket.Server({ server: httpServer });
 wss.on('connection', (ws, req) => {
   const url = req.url || '';
   const expectedPath = `/${WSPATH}`;
   if (!url.startsWith(expectedPath)) { ws.close(); return; }
-
   ws.once('message', msg => {
     if (msg.length > 17 && msg[0] === 0) {
       const id = msg.slice(1, 17);
@@ -302,7 +541,6 @@ wss.on('connection', (ws, req) => {
     ws.close();
   }).on('error', () => { });
 });
-
 // 添加自动保活任务
 async function addAccessTask() {
   if (!AUTO_ACCESS) return;
@@ -313,13 +551,11 @@ async function addAccessTask() {
     console.log('Automatic Access Task added successfully');
   } catch (error) { }
 }
-
 // NZ-Agent: Proto 定义 
 const PROTO_CONTENT = `
 syntax = "proto3";
 option go_package = "./proto";
 package proto;
-
 service NezhaService {
   rpc ReportSystemState(stream State) returns (stream Receipt) {}
   rpc ReportSystemInfo(Host) returns (Receipt) {}
@@ -328,7 +564,6 @@ service NezhaService {
   rpc ReportGeoIP(GeoIP) returns (GeoIP) {}
   rpc ReportSystemInfo2(Host) returns (Uint64Receipt) {}
 }
-
 message Host {
   string platform = 1;
   string platform_version = 2;
@@ -342,7 +577,6 @@ message Host {
   string version = 10;
   repeated string gpu = 11;
 }
-
 message State {
   double cpu = 1;
   uint64 mem_used = 2;
@@ -362,18 +596,15 @@ message State {
   repeated State_SensorTemperature temperatures = 16;
   repeated double gpu = 17;
 }
-
 message State_SensorTemperature {
   string name = 1;
   double temperature = 2;
 }
-
 message Task {
   uint64 id = 1;
   uint64 type = 2;
   string data = 3;
 }
-
 message TaskResult {
   uint64 id = 1;
   uint64 type = 2;
@@ -381,24 +612,20 @@ message TaskResult {
   string data = 4;
   bool successful = 5;
 }
-
 message Receipt { bool proced = 1; }
 message Uint64Receipt { uint64 data = 1; }
 message IOStreamData { bytes data = 1; }
-
 message GeoIP {
   bool use6 = 1;
   IP ip = 2;
   string country_code = 3;
   uint64 dashboard_boot_time = 4;
 }
-
 message IP {
   string ipv4 = 1;
   string ipv6 = 2;
 }
 `;
-
 function loadProto() {
     const tmpFile = path.join(os.tmpdir(), `nezha_${process.pid}.proto`);
     fs.writeFileSync(tmpFile, PROTO_CONTENT);
@@ -412,7 +639,6 @@ function loadProto() {
         try { fs.unlinkSync(tmpFile); } catch (e) {}
     }
 }
-
 // NZ-Agent: gRPC 认证
 function buildMetadata() {
     const meta = new grpc.Metadata();
@@ -422,19 +648,15 @@ function buildMetadata() {
     meta.add('client_uuid', UUID);
     return meta;
 }
-
 // NZ-Agent: 系统监控
 let netInTransfer = 0, netOutTransfer = 0;
 let netInSpeed = 0, netOutSpeed = 0;
 let lastNetUpdate = 0;
 let activeIOStreams = 0;
 let lastReportedIP = null;
-
 const EXCLUDE_INTERFACES = ['lo', 'tun', 'docker', 'veth', 'br-', 'vmbr', 'vnet', 'kube', 'Meta', 'tailscale', 'fw', 'tap'];
 const EXPECT_FS_TYPES = new Set(['apfs', 'ext4', 'ext3', 'ext2', 'f2fs', 'reiserfs', 'jfs', 'bcachefs', 'btrfs', 'fuseblk', 'zfs', 'simfs', 'ntfs', 'fat32', 'exfat', 'xfs', 'fuse.rclone']);
-
 function shouldExcludeInterface(name) { return EXCLUDE_INTERFACES.some(ex => name.includes(ex)); }
-
 function getArch() {
     switch (process.arch) {
         case 'x64': return 'x86_64';
@@ -443,7 +665,6 @@ function getArch() {
         default: return process.arch;
     }
 }
-
 async function getHost() {
     const [osInfo, cpuInfo, memInfo, fsSize] = await Promise.all([
         si.osInfo(), si.cpu(), si.mem(), si.fsSize(),
@@ -462,7 +683,6 @@ async function getHost() {
         virtualization: '', bootTime, version: AGENT_VERSION, gpu: [],
     };
 }
-
 async function trackNetworkSpeed() {
     try {
         const networkStats = await si.networkStats();
@@ -485,7 +705,6 @@ async function trackNetworkSpeed() {
         lastNetUpdate = now;
     } catch (e) { }
 }
-
 function getConnCount() {
     if (process.platform === 'linux') {
         try {
@@ -500,7 +719,6 @@ function getConnCount() {
     }
     return [0, 0];
 }
-
 function getProcessCountSync() {
     if (process.platform === 'linux') {
         try {
@@ -512,7 +730,6 @@ function getProcessCountSync() {
     }
     return -1;
 }
-
 async function getState() {
     const [currentLoad, memInfo, fsSize] = await Promise.all([
         si.currentLoad(), si.mem(), si.fsSize(),
@@ -548,12 +765,10 @@ async function getState() {
         tcpConnCount: tcpConn, udpConnCount: udpConn, processCount, temperatures: [], gpu: [],
     };
 }
-
 // NZ-Agent: GeoIP
 function makeLookup(family) {
     return (hostname, opts, callback) => { dns.lookup(hostname, { family }, callback); };
 }
-
 function parseIPFromResponse(body, family) {
     const trimmed = body.trim();
     if (family === 4 && net.isIPv4(trimmed)) return trimmed;
@@ -568,7 +783,6 @@ function parseIPFromResponse(body, family) {
     }
     return '';
 }
-
 async function fetchIP() {
     const ipv4Endpoints = ['https://ipv4.ip.sb/ip', 'https://blog.cloudflare.com/cdn-cgi/trace', 'https://developers.cloudflare.com/cdn-cgi/trace'];
     const ipv6Endpoints = ['https://ipv6.ip.sb/ip', 'https://blog.cloudflare.com/cdn-cgi/trace', 'https://developers.cloudflare.com/cdn-cgi/trace'];
@@ -590,7 +804,6 @@ async function fetchIP() {
     const [ipv4, ipv6] = await Promise.all([fetchFromEndpoints(ipv4Endpoints, 4), fetchFromEndpoints(ipv6Endpoints, 6)]);
     return { ipv4, ipv6 };
 }
-
 async function reportGeoIP(client, metadata, forceUpdate = false) {
     try {
         const { ipv4, ipv6 } = await fetchIP();
@@ -611,20 +824,16 @@ async function reportGeoIP(client, metadata, forceUpdate = false) {
         return success;
     } catch (e) { logErr('[GeoIP] 异常:', e.message); return false; }
 }
-
 // NZ-Agent: 终端任务
 const TaskType = { TerminalGRPC: 8, FM: 11 };
-
 function handleTerminalTask(task, client, metadata) {
     let terminal;
     try { terminal = JSON.parse(task.data); } catch (e) { logErr('[Terminal] 任务解析错误:', e.message); return; }
-
     const ioStream = client.IOStream(metadata);
     let streamClosed = false;
     let ptyProcess = null;
     let keepAlive = null;
     activeIOStreams++;
-
     function cleanup() {
         if (streamClosed) return;
         streamClosed = true;
@@ -633,21 +842,17 @@ function handleTerminalTask(task, client, metadata) {
         try { ioStream.end(); } catch (e) {}
         if (ptyProcess) { try { ptyProcess.kill(); } catch (e) {} }
     }
-
     ioStream.on('error', (err) => { logErr('[Terminal] IOStream 错误:', err.message); cleanup(); });
     ioStream.on('end', () => { cleanup(); });
     ioStream.on('status', (status) => {
         if (status.code !== 0 && status.code !== grpc.status.OK) { logErr('[Terminal] IOStream 状态异常:', status.code, status.details); cleanup(); }
     });
-
     const streamIDData = Buffer.concat([Buffer.from([0xff, 0x05, 0xff, 0x05]), Buffer.from(terminal.StreamID || '')]);
     try { ioStream.write({ data: streamIDData }); }
     catch (e) { logErr('[Terminal] 发送 StreamID 失败:', e.message); cleanup(); return; }
-
     const shell = process.env.SHELL || (process.platform === 'win32' ? 'powershell.exe' : 'bash');
     let ptyModule = null;
     try { ptyModule = require('node-pty'); } catch (e) { }
-
     if (ptyModule) {
         try {
             ptyProcess = ptyModule.spawn(shell, [], {
@@ -657,13 +862,11 @@ function handleTerminalTask(task, client, metadata) {
             });
         } catch (e) { logErr('[Terminal] PTY 启动失败:', e.message); }
     }
-
     if (!ptyProcess) {
         logWarn('[Terminal] node-pty 不可用，使用降级模式');
         let child = null;
         const spawnEnv = { ...process.env, TERM: 'xterm' };
         const spawnCwd = process.env.HOME || process.cwd();
-
         if (process.platform !== 'win32') {
             const tryStart = (cmd, args) => {
                 try {
@@ -689,9 +892,7 @@ function handleTerminalTask(task, client, metadata) {
         } else {
             child = spawn(shell, [], { cwd: spawnCwd, env: spawnEnv, stdio: ['pipe', 'pipe', 'pipe'], shell: true });
         }
-
         child.on('error', (err) => { logErr('[Terminal] 子进程启动失败:', err.message); });
-
         ptyProcess = {
             write: (data) => { try { child.stdin.write(data); } catch (e) {} },
             onData: (cb) => { child.stdout.on('data', cb); child.stderr.on('data', cb); },
@@ -708,14 +909,11 @@ function handleTerminalTask(task, client, metadata) {
             },
         };
     }
-
     log('[Terminal] 初始化, StreamID:', terminal.StreamID);
-
     ptyProcess.onData((data) => {
         if (streamClosed) return;
         try { ioStream.write({ data: Buffer.from(data) }); } catch (e) { }
     });
-
     ioStream.on('data', (msg) => {
         const data = Buffer.from(msg.data || []);
         if (data.length === 0) return;
@@ -724,46 +922,36 @@ function handleTerminalTask(task, client, metadata) {
             case 1: try { const resize = JSON.parse(data.slice(1).toString()); if (ptyProcess.resize) ptyProcess.resize(resize.Cols || 80, resize.Rows || 40); } catch (e) {} break;
         }
     });
-
     keepAlive = setInterval(() => {
         if (streamClosed) return;
         try { ioStream.write({ data: Buffer.alloc(0) }); } catch (e) {}
     }, 30000);
-
     ptyProcess.onExit((e) => { log('[Terminal] 退出, StreamID:', terminal.StreamID, 'code:', e.exitCode); cleanup(); });
 }
-
 // NZ-Agent: SFTP
 const FM_NZFN = Buffer.from([0x4E, 0x5A, 0x46, 0x4E]);
 const FM_NZTD = Buffer.from([0x4E, 0x5A, 0x54, 0x44]);
 const FM_NERR = Buffer.from([0x4E, 0x45, 0x52, 0x52]);
 const FM_NZUP = Buffer.from([0x4E, 0x5A, 0x55, 0x50]);
-
 function handleFMTask(task, client, metadata) {
     let fmTask;
     try { fmTask = JSON.parse(task.data); } catch (e) { logErr('[FM] 任务解析错误:', e.message); return; }
-
     const ioStream = client.IOStream(metadata);
     let streamClosed = false;
     let uploadState = null;
     activeIOStreams++;
-
     const streamIDData = Buffer.concat([Buffer.from([0xff, 0x05, 0xff, 0x05]), Buffer.from(fmTask.StreamID || '')]);
     try { ioStream.write({ data: streamIDData }); }
     catch (e) { logErr('[FM] 发送 StreamID 失败:', e.message); activeIOStreams--; return; }
-
     log('[FM] 初始化, StreamID:', fmTask.StreamID);
-
     const keepAlive = setInterval(() => {
         if (streamClosed) return;
         try { ioStream.write({ data: Buffer.alloc(0) }); } catch (e) {}
     }, 30000);
-
     function sendError(msg) {
         if (streamClosed) return;
         try { ioStream.write({ data: Buffer.concat([FM_NERR, Buffer.from(msg)]) }); } catch (e) {}
     }
-
     function listDir(dir) {
         try {
             const entries = fs.readdirSync(dir, { withFileTypes: true });
@@ -784,7 +972,6 @@ function handleFMTask(task, client, metadata) {
             else sendError(err.message);
         }
     }
-
     function downloadFile(filePath) {
         try {
             const stat = fs.statSync(filePath);
@@ -800,7 +987,6 @@ function handleFMTask(task, client, metadata) {
             stream.on('error', (err) => sendError(err.message));
         } catch (err) { sendError(err.message); }
     }
-
     function startUpload(data) {
         if (data.length < 8) { sendError('data is invalid'); return; }
         const fileSize = Number(data.readBigUInt64BE(0));
@@ -822,7 +1008,6 @@ function handleFMTask(task, client, metadata) {
             log('[FM] 接收文件:', filePath, '大小:', fileSize);
         } catch (err) { sendError(err.message); }
     }
-
     ioStream.on('data', (msg) => {
         const data = Buffer.from(msg.data || []);
         if (data.length === 0) return;
@@ -839,7 +1024,6 @@ function handleFMTask(task, client, metadata) {
             case 2: startUpload(data.slice(1)); break;
         }
     });
-
     const cleanup = () => {
         clearInterval(keepAlive);
         if (!streamClosed) {
@@ -851,7 +1035,6 @@ function handleFMTask(task, client, metadata) {
     ioStream.on('error', (err) => { logErr('[FM] IOStream 错误:', err.message); cleanup(); });
     ioStream.on('end', () => { log('[FM] IOStream 结束, StreamID:', fmTask.StreamID); cleanup(); });
 }
-
 // NZ-Agent: 任务分发 
 function dispatchTask(task, taskStream, client, metadata) {
     switch (task.type) {
@@ -859,48 +1042,39 @@ function dispatchTask(task, taskStream, client, metadata) {
         case TaskType.FM: handleFMTask(task, client, metadata); break;
     }
 }
-
 // NZ-Agent: 辅助函数
 function sleep(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
-
 function callWithTimeout(fn, timeoutMs) {
     return new Promise((resolve, reject) => {
         const timer = setTimeout(() => reject(new Error('timeout')), timeoutMs);
         fn((err, resp) => { clearTimeout(timer); if (err) reject(err); else resolve(resp); });
     });
 }
-
 // NZ-Agent: 主循环
 async function startNezhaAgent() {
     if (!NEZHA_SERVER || !NEZHA_KEY) {
         console.log('[Nezha] NEZHA_SERVER 或 NEZHA_KEY 未配置，跳过哪吒 agent');
         return;
     }
-
     log('[Nezha] 服务器:', NEZHA_SERVER);
     log('[Nezha] TLS:', shouldUseTLS(NEZHA_SERVER) ? '启用' : '禁用');
     log('[Nezha] UUID:', UUID);
-
     const proto = loadProto();
     const useTLS = shouldUseTLS(NEZHA_SERVER);
     const credentials = useTLS ? grpc.credentials.createSsl() : grpc.credentials.createInsecure();
     const metadata = buildMetadata();
-
     let lastReportHostInfo = 0;
     let lastReportIPInfo = 0;
     let geoipReported = false;
     let prevDashboardBootTime = 0;
-
     while (true) {
         let client = null;
         let taskStream = null;
         let stateStream = null;
         let workerCancelled = false;
-
         try {
             client = new proto.NezhaService(NEZHA_SERVER, credentials);
             console.log('nzbot is running...');
-
             const hostInfo = await getHost();
             let dashboardBootTime = 0;
             try {
@@ -913,25 +1087,19 @@ async function startNezhaAgent() {
                 logErr('[Agent] 上报系统信息失败:', err.message);
                 throw err;
             }
-
             geoipReported = false;
             prevDashboardBootTime = dashboardBootTime;
-
             try {
                 const success = await reportGeoIP(client, metadata, true);
                 if (success) { lastReportIPInfo = Date.now(); geoipReported = true; }
             } catch (e) { logErr('[GeoIP] 首次上报异常:', e.message); }
-
             taskStream = client.RequestTask(metadata);
             log('[Agent] RequestTask strem connect');
-
             stateStream = client.ReportSystemState(metadata);
             log('[Agent] ReportSystemState strem connect');
-
             taskStream.on('data', (task) => { dispatchTask(task, taskStream, client, metadata); });
             taskStream.on('error', (err) => { logErr('[Agent] RequestTask strem error:', err.message); workerCancelled = true; });
             taskStream.on('end', () => { log('[Agent] RequestTask strem finished'); workerCancelled = true; });
-
             const stateLoop = (async () => {
                 while (!workerCancelled) {
                     try {
@@ -972,9 +1140,7 @@ async function startNezhaAgent() {
                     await sleep(REPORT_DELAY * 1000);
                 }
             })();
-
             await stateLoop;
-
         } catch (err) {
             logErr('[Agent] connect error:', err.message);
         } finally {
@@ -988,12 +1154,10 @@ async function startNezhaAgent() {
             try { if (stateStream) stateStream.end(); } catch (e) {}
             try { if (client) client.close(); } catch (e) {}
         }
-
         log('[Agent] retry connect...');
         await sleep(RETRY_DELAY);
     }
 }
-
 // start service
 httpServer.listen(PORT, () => {
   startNezhaAgent().catch(err => console.error('error', err));
