@@ -85,14 +85,14 @@ async function getisp() {
 
 // 获取ip
 async function getip() {
-  if (!DOMAIN || DOMAIN === 'your-domain.com') {
+  if (!DOMAIN || DOMAIN === 'vexlo.kttk.net') {
       try {
           const res = await axios.get('https://api-ipv4.ip.sb/ip', { timeout: 5000 });
           const ip = res.data.trim();
           CurrentDomain = ip, Tls = 'none', CurrentPort = PORT;
       } catch (e) {
           console.error('Failed to get IP', e.message);
-          CurrentDomain = 'cahnge-your-domain.com', Tls = 'tls', CurrentPort = 443;
+          CurrentDomain = 'cahnge-vexlo.kttk.net', Tls = 'tls', CurrentPort = 443;
       }
   } else {
       CurrentDomain = DOMAIN, Tls = 'tls', CurrentPort = 443;
